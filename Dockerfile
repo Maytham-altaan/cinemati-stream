@@ -1,24 +1,23 @@
 FROM node:20-slim
 
-# Ensure node is in standard PATH for yt-dlp to find
-ENV PATH="/usr/local/bin:${PATH}"
-
-# Install Python, pip, yt-dlp + bgutil PO token provider
+# Install Python, pip, git, yt-dlp + bgutil PO token provider
 RUN apt-get update && apt-get install -y python3 python3-pip git && \
     pip3 install --break-system-packages yt-dlp --upgrade && \
     pip3 install --break-system-packages bgutil-ytdlp-pot-provider && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Symlink node to /usr/bin so yt-dlp's shutil.which() finds it
-RUN ln -sf $(which node) /usr/bin/node
+# Symlink node to multiple locations so yt-dlp can find it
+RUN ln -sf /usr/local/bin/node /usr/bin/node && \
+    ln -sf /usr/local/bin/node /usr/local/sbin/node
 
-# Build bgutil server scripts for PO token generation
-RUN git clone https://github.com/nicholasgasior/bgutil-ytdlp-pot-provider.git /opt/bgutil && \
-    cd /opt/bgutil/server && \
+# Clone bgutil to the DEFAULT path the plugin expects
+RUN git clone https://github.com/nicholasgasior/bgutil-ytdlp-pot-provider.git /root/bgutil-ytdlp-pot-provider && \
+    cd /root/bgutil-ytdlp-pot-provider/server && \
     npm install && \
     npx tsc 2>/dev/null || true
 
-ENV BGUTIL_SCRIPT_PATH=/opt/bgutil/server
+# Ensure PATH includes node location
+ENV PATH="/usr/local/bin:/usr/bin:${PATH}"
 
 WORKDIR /app
 COPY package.json .

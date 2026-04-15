@@ -5,6 +5,13 @@ const { execSync } = require('child_process');
 const app = express();
 app.use(cors());
 
+// Ensure child processes can find node and yt-dlp
+const EXEC_OPTS = {
+  encoding: 'utf8',
+  timeout: 30000,
+  env: { ...process.env, PATH: '/usr/local/bin:/usr/bin:/bin:' + (process.env.PATH || '') },
+};
+
 // Cache extracted URLs (they expire after ~5 hours)
 const cache = new Map();
 const CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
@@ -30,7 +37,7 @@ function extractUrl(videoId) {
     try {
       const cmd = STRATEGIES[i](videoId);
       console.log(`  [Strategy ${i + 1}] trying...`);
-      const raw = execSync(cmd, { encoding: 'utf8', timeout: 30000 }).trim();
+      const raw = execSync(cmd, EXEC_OPTS).trim();
       const url = raw.split('\n').filter(l => l.startsWith('http')).pop();
       if (url) {
         console.log(`  [Strategy ${i + 1}] ✓ success`);
@@ -45,7 +52,7 @@ function extractUrl(videoId) {
   try {
     const errOut = execSync(
       `yt-dlp -v -f "best[height<=720]" -g "https://www.youtube.com/watch?v=${videoId}" 2>&1`,
-      { encoding: 'utf8', timeout: 30000 }
+      EXEC_OPTS
     ).trim();
     console.log(`  [VERBOSE] ${errOut.substring(0, 500)}`);
   } catch (e) {
@@ -123,7 +130,7 @@ app.get('/debug', (_, res) => {
   let version = 'unknown';
   let testResult = 'not tested';
   try {
-    version = execSync('yt-dlp --version', { encoding: 'utf8', timeout: 5000 }).trim();
+    version = execSync('yt-dlp --version', { ...EXEC_OPTS, timeout: 5000 }).trim();
   } catch (e) {
     version = 'error: ' + e.message;
   }
@@ -131,13 +138,17 @@ app.get('/debug', (_, res) => {
     // Test with a known public video
     const raw = execSync(
       'yt-dlp -v -f "best[height<=720]" -g "https://www.youtube.com/watch?v=jNQXAC9IVRw" 2>&1',
-      { encoding: 'utf8', timeout: 30000 }
+      EXEC_OPTS
     ).trim();
     testResult = raw.substring(0, 1000);
   } catch (e) {
     testResult = (e.stderr || e.stdout || e.message || '').substring(0, 1000);
   }
-  res.json({ version, testResult });
+  let nodeCheck = 'unknown';
+  try {
+    nodeCheck = execSync('which node && node --version && ls /root/bgutil-ytdlp-pot-provider/server/build/ 2>&1 || echo "no bgutil build"', EXEC_OPTS).trim();
+  } catch (e) { nodeCheck = e.message; }
+  res.json({ version, nodeCheck, testResult });
 });
 
 const PORT = process.env.PORT || 3001;
