@@ -10,11 +10,12 @@ RUN apt-get update && apt-get install -y python3 python3-pip git && \
 RUN ln -sf /usr/local/bin/node /usr/bin/node && \
     ln -sf /usr/local/bin/node /usr/local/sbin/node
 
-# Clone bgutil to the DEFAULT path the plugin expects
-RUN git clone https://github.com/nicholasgasior/bgutil-ytdlp-pot-provider.git /root/bgutil-ytdlp-pot-provider && \
+# Clone bgutil to the DEFAULT path the plugin expects (correct repo)
+RUN git clone https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /root/bgutil-ytdlp-pot-provider && \
     cd /root/bgutil-ytdlp-pot-provider/server && \
     npm install && \
-    npx tsc 2>/dev/null || true
+    npx tsc || true && \
+    ls -la build/ 2>/dev/null || echo "No build dir"
 
 # Ensure PATH includes node location
 ENV PATH="/usr/local/bin:/usr/bin:${PATH}"
