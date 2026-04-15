@@ -13,5 +13,6 @@ COPY server.js .
 # Fix NUL redirect for Linux
 RUN sed -i 's/2>NUL/2>\/dev\/null/g' server.js
 
-EXPOSE 3001
+EXPOSE 7860
+ENV PORT=7860
 CMD ["node", "server.js"]
